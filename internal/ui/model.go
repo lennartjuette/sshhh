@@ -129,9 +129,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case frameMsg:
 		m.now = time.Time(msg)
 		for _, e := range m.mgr.Exits() {
-			m.notify(noteError, "%s exited with code %d: %s", e.Name, e.Code, e.LastLog)
+			m.notify(noteError, "%s", exitText(e))
 		}
 		m.refresh()
+		if !m.scanned { // the watchdog needs to know what runs
+			return m, nextFrame()
+		}
+		if started := m.mgr.Watchdog(m.rows); len(started) > 0 {
+			m.notify(noteWarn, "reconnecting %s", strings.Join(started, ", "))
+			m.refresh()
+			return m, tea.Batch(nextFrame(), m.scanCmd(false))
+		}
 		return m, nextFrame()
 	case scanMsg:
 		return m, m.onScan(msg)
@@ -271,6 +279,9 @@ func (m *Model) answer(key string) tea.Cmd {
 
 func (m *Model) toggle(r tunnel.Row) tea.Cmd {
 	switch {
+	case r.Status == tunnel.Reconnecting && r.PID == 0:
+		_ = m.mgr.Stop(r)
+		m.notify(noteInfo, "%s: reconnect cancelled", r.Name)
 	case r.PID != 0:
 		if err := m.mgr.Stop(r); err != nil {
 			m.notify(noteError, "stop %s: %v", r.Name, err)
@@ -348,6 +359,16 @@ func (m *Model) quit() tea.Cmd {
 		},
 	}
 	return nil
+}
+
+func exitText(e tunnel.Exit) string {
+	switch {
+	case e.Code < 0:
+		return e.Name + " was killed"
+	case e.LastLog == "":
+		return fmt.Sprintf("%s exited with code %d", e.Name, e.Code)
+	}
+	return fmt.Sprintf("%s exited with code %d: %s", e.Name, e.Code, e.LastLog)
 }
 
 func (m *Model) notify(kind noteKind, format string, args ...any) {

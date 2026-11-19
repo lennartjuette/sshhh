@@ -29,6 +29,7 @@ remote      = []                             # -R: server port -> local target
 options     = ["-o", "IdentitiesOnly=yes"]   # extra ssh arguments
 compression = true
 autostart   = true                           # start when sshhh starts
+reconnect   = true                           # restart after a drop (default)
 `
 
 // Tunnel is one [[tunnel]] block of the configuration.
@@ -43,7 +44,11 @@ type Tunnel struct {
 	Options     []string `toml:"options"`
 	Compression bool     `toml:"compression"`
 	Autostart   bool     `toml:"autostart"`
+	Reconnect   *bool    `toml:"reconnect"` // nil means true
 }
+
+// Reconnects reports whether sshhh restarts the tunnel after it drops.
+func (t Tunnel) Reconnects() bool { return t.Reconnect == nil || *t.Reconnect }
 
 // Spec returns the ssh connection the tunnel describes.
 func (t Tunnel) Spec() sshcmd.Spec {

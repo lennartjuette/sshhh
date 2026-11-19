@@ -33,6 +33,7 @@ var (
 	colorSelected = lipgloss.Color("#2d2545")
 	colorStarting = lipgloss.Color("#ffd75f")
 	colorFailed   = lipgloss.Color("#ff5f5f")
+	colorRetry    = lipgloss.Color("#ffaf5f")
 	colorInk      = lipgloss.Color("#1a1a24")
 )
 

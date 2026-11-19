@@ -171,7 +171,7 @@ func (m *Model) cells(r tunnel.Row, selected bool, t float64) []string {
 	}
 	// Padded to the longest status, so the table does not jump when a
 	// tunnel goes from "down" to "starting" to "up".
-	c[colStatus] = fmt.Sprintf("%-10s", statusText(r, t))
+	c[colStatus] = fmt.Sprintf("%-10s", statusText(r, t, m.now))
 	c[colPID], c[colUptime], c[colConn] = "–", "–", "–"
 	if r.PID != 0 {
 		c[colPID] = strconv.Itoa(int(r.PID))
@@ -200,8 +200,13 @@ func (m *Model) cells(r tunnel.Row, selected bool, t float64) []string {
 	return c
 }
 
-func statusText(r tunnel.Row, t float64) string {
+func statusText(r tunnel.Row, t float64, now time.Time) string {
 	switch r.Status {
+	case tunnel.Reconnecting:
+		if wait := r.RetryAt.Sub(now); wait > 0 {
+			return fmt.Sprintf("↻ in %ds", int(math.Ceil(wait.Seconds())))
+		}
+		return "↻ now"
 	case tunnel.Up:
 		return "● up"
 	case tunnel.Starting:
@@ -224,6 +229,8 @@ func statusColor(s tunnel.Status, t float64) color.Color {
 		return colorStarting
 	case tunnel.Failed:
 		return colorFailed
+	case tunnel.Reconnecting:
+		return colorRetry
 	}
 	return colorMuted
 }

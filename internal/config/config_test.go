@@ -129,3 +129,13 @@ func TestSyntaxErrorNamesLine(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestReconnectDefaultsToOn(t *testing.T) {
+	tunnels, err := Parse(strings.NewReader("[[tunnel]]\nname='a'\nhost='h'\nsocks=1\n[[tunnel]]\nname='b'\nhost='h'\nsocks=2\nreconnect=false"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tunnels[0].Reconnects() || tunnels[1].Reconnects() {
+		t.Errorf("Reconnects = %v, %v; want true, false", tunnels[0].Reconnects(), tunnels[1].Reconnects())
+	}
+}

@@ -280,3 +280,43 @@ func TestTableWidthIsStable(t *testing.T) {
 		t.Errorf("table width changes with the status: down %d, starting %d, up %d", down, starting, up)
 	}
 }
+
+func TestReconnectStatusText(t *testing.T) {
+	now := time.Unix(1000, 0)
+	r := tunnel.Row{Status: tunnel.Reconnecting, RetryAt: now.Add(3200 * time.Millisecond)}
+	if got := statusText(r, 0, now); got != "↻ in 4s" {
+		t.Errorf("statusText = %q; want ↻ in 4s", got)
+	}
+	r.RetryAt = time.Time{}
+	if got := statusText(r, 0, now); got != "↻ now" {
+		t.Errorf("statusText = %q; want ↻ now", got)
+	}
+}
+
+func TestEnterCancelsReconnect(t *testing.T) {
+	alpha := proc.Proc{PID: 4242, Dest: "a", Forwards: []sshcmd.Forward{{Kind: sshcmd.Dynamic, Spec: "1"}}, Listening: map[int]bool{1: true}}
+	m := newModel(t, testTunnels, alpha)
+	m.Update(frameMsg(time.Now())) // the watchdog sees alpha running
+	m.scan = func(context.Context) ([]proc.Proc, error) { return nil, nil }
+	m.Update(m.scanCmd(false)())   // alpha is gone
+	m.Update(frameMsg(time.Now())) // the watchdog schedules a retry
+	if m.rows[0].Status != tunnel.Reconnecting {
+		t.Fatalf("alpha: %v; want reconnecting", m.rows[0].Status)
+	}
+	press(m, "enter")
+	if m.rows[0].Status != tunnel.Down || !strings.Contains(m.note.text, "cancelled") {
+		t.Errorf("after enter: %v, note %q", m.rows[0].Status, m.note.text)
+	}
+}
+
+func TestExitText(t *testing.T) {
+	for e, want := range map[tunnel.Exit]string{
+		{Name: "a", Code: -1, LastLog: "x"}:         "a was killed",
+		{Name: "a", Code: 255}:                      "a exited with code 255",
+		{Name: "a", Code: 255, LastLog: "no route"}: "a exited with code 255: no route",
+	} {
+		if got := exitText(e); got != want {
+			t.Errorf("exitText(%+v) = %q; want %q", e, got, want)
+		}
+	}
+}

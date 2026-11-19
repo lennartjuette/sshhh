@@ -72,6 +72,7 @@ remote      = []                             # -R: server port -> local target
 options     = ["-o", "IdentitiesOnly=yes"]   # extra ssh arguments
 compression = true
 autostart   = true                           # start when sshhh starts
+reconnect   = true                           # restart after a drop (default)
 ```
 
 Each tunnel runs as
@@ -92,7 +93,7 @@ do nothing.
 | Key            | Action                                                        |
 | -------------- | ------------------------------------------------------------- |
 | `↑` `↓` `k` `j`| select a tunnel                                               |
-| `⏎` `space` `s`| start or stop it                                              |
+| `⏎` `space` `s`| start or stop it, or stop a reconnect                          |
 | `r`            | restart it                                                    |
 | `l`            | show its log in `$PAGER` (default `less`)                     |
 | `e`            | edit the config, reloaded when the editor closes              |
@@ -107,14 +108,22 @@ them. Tunnels it cannot match are listed under "not in config" and can be
 stopped, but sshhh never stops them on its own.
 
 **Status** is `up` when ssh listens on every local port of the tunnel,
-`starting` while it does not yet, `failed` when a tunnel sshhh started exited
-with an error (the reason is shown, and the log has the rest), and `down`
-otherwise. `CONN` counts the client connections currently using the tunnel.
+`starting` while it does not yet, `↻ in 4s` while it waits to reconnect,
+`failed` when a tunnel with `reconnect = false` exited with an error (the
+reason is shown, and the log has the rest), and `down` otherwise. `CONN` counts the client connections currently using the tunnel.
 
 **Logs** of the tunnels sshhh starts go to `~/.local/state/sshhh/<name>.log`
 (`%LocalAppData%\sshhh` on Windows).
 
-sshhh does not reconnect a failed tunnel on its own. Press `r`.
+**Reconnect.** While sshhh runs, it keeps the tunnels of the config up. When
+one drops without you stopping it, sshhh starts it again after 1 second, then
+waits 2, 4, 8 … seconds after each failed attempt, at most a minute. Once a
+tunnel has stayed up for 30 seconds, the next drop starts at 1 second again.
+Press `⏎` on a reconnecting tunnel to give up on it, or set
+`reconnect = false` to turn it off for that tunnel. Tunnels you stop, kill
+with `K` or that are not in the config are never restarted. After you quit
+sshhh, tunnels keep running, but nobody watches them until you start sshhh
+again.
 
 ## Develop
 

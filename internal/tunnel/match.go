@@ -3,6 +3,8 @@
 package tunnel
 
 import (
+	"time"
+
 	"github.com/lennartjuette/sshhh/internal/config"
 	"github.com/lennartjuette/sshhh/internal/proc"
 	"github.com/lennartjuette/sshhh/internal/sshcmd"
@@ -15,11 +17,12 @@ const (
 	Down     Status = iota
 	Starting        // process runs, but not all local ports listen yet
 	Up
-	Failed // sshhh started it and it exited with an error
+	Failed       // sshhh started it and it exited with an error
+	Reconnecting // dropped; the watchdog starts it again at RetryAt
 )
 
 func (s Status) String() string {
-	return [...]string{"down", "starting", "up", "failed"}[s]
+	return [...]string{"down", "starting", "up", "failed", "reconnecting"}[s]
 }
 
 // Row is one line of the tunnel list.
@@ -29,7 +32,9 @@ type Row struct {
 	Proc     *proc.Proc     // nil if no matching process was found
 	PID      int32          // running process, or the child sshhh just started; 0 if none
 	Status   Status
-	ExitCode int // set when Status is Failed; -1 if killed by a signal
+	ExitCode int       // set when Status is Failed; -1 if killed by a signal
+	Attempt  int       // set when Status is Reconnecting: attempts so far
+	RetryAt  time.Time // set when Status is Reconnecting: zero means now
 }
 
 // Match pairs every configured tunnel with a running ssh process that goes
