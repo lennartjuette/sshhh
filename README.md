@@ -10,27 +10,7 @@ also finds tunnels that were started some other way.
 If you are managing about as many SSH tunnels as you are managing children
 and spend your days shushing both, this tool is for you.
 
-```
-          ███████╗███████╗██╗  ██╗██╗  ██╗██╗  ██╗
-          ██╔════╝██╔════╝██║  ██║██║  ██║██║  ██║
-          ███████╗███████╗███████║███████║███████║
-          ╚════██║╚════██║██╔══██║██╔══██║██╔══██║
-          ███████║███████║██║  ██║██║  ██║██║  ██║
-          ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
-          •──────●•──────●•──────●•──────●•──────●
-     ssh -N: children who never execute a command
-
- ~/.config/sshhh/tunnels.toml · 2/3 tucked in · 08:42:44
-╭───┬───────────────┬────────┬───────┬────────┬──────┬───────────┬──────────────╮
-│   │ TUNNEL        │ STATUS │ PID   │ UPTIME │ CONN │ FORWARDS  │ TARGET       │
-├───┼───────────────┼────────┼───────┼────────┼──────┼───────────┼──────────────┤
-│ ▸ │ office ↻      │ ● up   │ 50334 │  8m25s │    2 │ D:1080    │ me@gateway   │
-│   │ database      │ ○ down │     – │      – │    – │ L:5432:…  │ me@bastion   │
-├───┼───────────────┼────────┼───────┼────────┼──────┼───────────┼──────────────┤
-│   │ not in config │        │       │        │      │           │              │
-│   │ build01       │ ● up   │ 50354 │  2h04m │    1 │ L:8080:…  │ ci@build01   │
-╰───┴───────────────┴────────┴───────┴────────┴──────┴───────────┴──────────────╯
-```
+![sshhh starting tunnels, connecting one and restarting another](docs/demo.webp)
 
 ## Install
 
