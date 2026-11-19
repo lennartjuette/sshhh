@@ -95,9 +95,18 @@ func (m *Model) renderTable() string {
 		return styleMuted.Render("\n No tunnels yet. Press e to add your first one.")
 	}
 	t := m.now.Sub(m.started).Seconds()
-	data := make([][]string, len(m.rows))
+	// rowOf maps table rows to m.rows; -1 marks the label above the tunnels
+	// that run but are not in the config, so they don't read as sub-rows of
+	// the last configured tunnel.
+	var data [][]string
+	var rowOf []int
 	for i, r := range m.rows {
-		data[i] = m.cells(r, i == m.sel, t)
+		if r.Config == nil && (i == 0 || m.rows[i-1].Config != nil) {
+			label := make([]string, len(headers))
+			label[colName] = "not in config"
+			data, rowOf = append(data, label), append(rowOf, -1)
+		}
+		data, rowOf = append(data, m.cells(r, i == m.sel, t)), append(rowOf, i)
 	}
 	tbl := table.New().
 		Border(lipgloss.RoundedBorder()).
@@ -108,19 +117,23 @@ func (m *Model) renderTable() string {
 			if row == table.HeaderRow {
 				return styleHeader
 			}
+			i := rowOf[row]
+			if i < 0 {
+				return styleCell.Foreground(colorMuted).Italic(true)
+			}
 			s := styleCell
-			if row == m.sel {
+			if i == m.sel {
 				s = s.Background(colorSelected).Bold(true)
 			}
 			switch col {
 			case colStatus:
-				s = s.Foreground(statusColor(m.rows[row].Status, t))
+				s = s.Foreground(statusColor(m.rows[i].Status, t))
 			case colPID, colUptime, colConn:
 				s = s.Align(lipgloss.Right)
 			case colMarker:
 				s = s.Foreground(colorAccent)
 			case colForwards, colTarget:
-				if row != m.sel {
+				if i != m.sel {
 					s = s.Foreground(colorMuted)
 				}
 			}
@@ -138,9 +151,7 @@ func (m *Model) cells(r tunnel.Row, selected bool, t float64) []string {
 		c[colMarker] = "▸"
 	}
 	c[colName] = r.Name
-	if r.Config == nil {
-		c[colName] = "↳ " + r.Name
-	} else if r.Config.Autostart {
+	if r.Config != nil && r.Config.Autostart {
 		c[colName] += " ↻"
 	}
 	c[colStatus] = statusText(r, t)

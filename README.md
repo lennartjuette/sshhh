@@ -21,13 +21,14 @@ and spend your days shushing both, this tool is for you.
      ssh -N: children who never execute a command
 
  ~/.config/sshhh/tunnels.toml · 2/3 tucked in · 08:42:44
-╭───┬───────────┬────────────┬───────┬────────┬──────┬───────────┬──────────────╮
-│   │ TUNNEL    │ STATUS     │ PID   │ UPTIME │ CONN │ FORWARDS  │ TARGET       │
-├───┼───────────┼────────────┼───────┼────────┼──────┼───────────┼──────────────┤
-│ ▸ │ office ↻  │ ● up       │ 50334 │  8m25s │    2 │ D:1080    │ me@gateway   │
-│   │ database  │ ○ down     │     – │      – │    – │ L:5432:…  │ me@bastion   │
-│   │ ↳ build01 │ ● up       │ 50354 │  2h04m │    1 │ L:8080:…  │ ci@build01   │
-╰───┴───────────┴────────────┴───────┴────────┴──────┴───────────┴──────────────╯
+╭───┬───────────────┬────────┬───────┬────────┬──────┬───────────┬──────────────╮
+│   │ TUNNEL        │ STATUS │ PID   │ UPTIME │ CONN │ FORWARDS  │ TARGET       │
+├───┼───────────────┼────────┼───────┼────────┼──────┼───────────┼──────────────┤
+│ ▸ │ office ↻      │ ● up   │ 50334 │  8m25s │    2 │ D:1080    │ me@gateway   │
+│   │ database      │ ○ down │     – │      – │    – │ L:5432:…  │ me@bastion   │
+│   │ not in config │        │       │        │      │           │              │
+│   │ build01       │ ● up   │ 50354 │  2h04m │    1 │ L:8080:…  │ ci@build01   │
+╰───┴───────────────┴────────┴───────┴────────┴──────┴───────────┴──────────────╯
 ```
 
 ## Install
@@ -121,8 +122,8 @@ do nothing.
 **Tunnels outlive sshhh.** They run in their own session, so you can quit
 sshhh, close the terminal and come back later. On start, sshhh matches the
 running ssh processes against the config by host and forwards and adopts
-them. Tunnels it cannot match are listed with a `↳` and can be stopped, but
-sshhh never stops them on its own.
+them. Tunnels it cannot match are listed under "not in config" and can be
+stopped, but sshhh never stops them on its own.
 
 **Status** is `up` when ssh listens on every local port of the tunnel,
 `starting` while it does not yet, `failed` when a tunnel sshhh started exited

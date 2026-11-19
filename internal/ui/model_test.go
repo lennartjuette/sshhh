@@ -200,7 +200,7 @@ func TestView(t *testing.T) {
 	external := proc.Proc{PID: 77, Dest: "me@elsewhere", Forwards: []sshcmd.Forward{{Kind: sshcmd.Local, Spec: "8080:db:5432"}}}
 	m := newModel(t, testTunnels, external)
 	out := ansi.Strip(m.View().Content)
-	for _, want := range []string{"███", "TUNNEL", "alpha", "○ down", "↳ elsewhere", "L:8080:db:5432", "Señor DadOps"} {
+	for _, want := range []string{"███", "TUNNEL", "alpha", "○ down", "not in config", "elsewhere", "L:8080:db:5432", "Señor DadOps"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("view lacks %q", want)
 		}
