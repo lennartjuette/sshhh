@@ -202,7 +202,7 @@ func TestView(t *testing.T) {
 	external := proc.Proc{PID: 77, Dest: "me@elsewhere", Forwards: []sshcmd.Forward{{Kind: sshcmd.Local, Spec: "8080:db:5432"}}}
 	m := newModel(t, testTunnels, external)
 	out := ansi.Strip(m.View().Content)
-	for _, want := range []string{"███", "TUNNEL", "alpha", "○ down", "not in config", "elsewhere", "L:8080:db:5432", "Señor DadOps"} {
+	for _, want := range []string{"███", "TUNNEL", "alpha", "○ down", "elsewhere", "L:8080:db:5432", "Señor DadOps"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("view lacks %q", want)
 		}
@@ -255,18 +255,21 @@ func TestEditorFromEnv(t *testing.T) {
 	}
 }
 
-func TestSeparatorAboveExternalTunnels(t *testing.T) {
+func TestRuleAboveExternalTunnels(t *testing.T) {
 	external := proc.Proc{PID: 77, Dest: "elsewhere", Forwards: []sshcmd.Forward{{Kind: sshcmd.Dynamic, Spec: "9"}}}
 	lines := strings.Split(ansi.Strip(newModel(t, testTunnels, external).renderTable()), "\n")
-	label := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "not in config") })
-	if label < 1 || !strings.HasPrefix(lines[label-1], "├") || !strings.Contains(lines[label-2], "gamma") {
-		t.Errorf("no rule between gamma and the label:\n%s", strings.Join(lines, "\n"))
+	ext := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "elsewhere") })
+	if ext < 2 || !strings.HasPrefix(lines[ext-1], "├") || !strings.Contains(lines[ext-2], "gamma") {
+		t.Errorf("no rule between gamma and the external tunnel:\n%s", strings.Join(lines, "\n"))
 	}
-	if !strings.Contains(lines[label+1], "elsewhere") {
-		t.Errorf("external tunnel must follow the label:\n%s", strings.Join(lines, "\n"))
+	if strings.Contains(strings.Join(lines, "\n"), "not in config") {
+		t.Error("the label is gone, the rule alone separates")
 	}
 	if out := newModel(t, testTunnels).renderTable(); strings.Count(ansi.Strip(out), "├") != 1 {
 		t.Error("without external tunnels there must be only the header rule")
+	}
+	if out := newModel(t, nil, external).renderTable(); strings.Count(ansi.Strip(out), "├") != 1 {
+		t.Error("with only external tunnels the header rule is enough")
 	}
 }
 

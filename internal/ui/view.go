@@ -96,18 +96,9 @@ func (m *Model) renderTable() string {
 		return styleMuted.Render("\n No tunnels yet. Press e to add your first one.")
 	}
 	t := m.now.Sub(m.started).Seconds()
-	// rowOf maps table rows to m.rows; -1 marks the label above the tunnels
-	// that run but are not in the config, so they don't read as sub-rows of
-	// the last configured tunnel.
-	var data [][]string
-	var rowOf []int
+	data := make([][]string, len(m.rows))
 	for i, r := range m.rows {
-		if r.Config == nil && (i == 0 || m.rows[i-1].Config != nil) {
-			label := make([]string, len(headers))
-			label[colName] = "not in config"
-			data, rowOf = append(data, label), append(rowOf, -1)
-		}
-		data, rowOf = append(data, m.cells(r, i == m.sel, t)), append(rowOf, i)
+		data[i] = m.cells(r, i == m.sel, t)
 	}
 	tbl := table.New().
 		Border(lipgloss.RoundedBorder()).
@@ -118,23 +109,19 @@ func (m *Model) renderTable() string {
 			if row == table.HeaderRow {
 				return styleHeader
 			}
-			i := rowOf[row]
-			if i < 0 {
-				return styleCell.Foreground(colorMuted).Italic(true)
-			}
 			s := styleCell
-			if i == m.sel {
+			if row == m.sel {
 				s = s.Background(colorSelected).Bold(true)
 			}
 			switch col {
 			case colStatus:
-				s = s.Foreground(statusColor(m.rows[i].Status, t))
+				s = s.Foreground(statusColor(m.rows[row].Status, t))
 			case colPID, colUptime, colConn:
 				s = s.Align(lipgloss.Right)
 			case colMarker:
 				s = s.Foreground(colorAccent)
 			case colForwards, colTarget:
-				if i != m.sel {
+				if row != m.sel {
 					s = s.Foreground(colorMuted)
 				}
 			}
@@ -143,21 +130,23 @@ func (m *Model) renderTable() string {
 	if lipgloss.Width(tbl.String()) > m.width {
 		tbl.Width(m.width).Wrap(false)
 	}
-	return problem + separateLabel(tbl.String(), slices.Index(rowOf, -1))
+	// Tunnels that are not in the config come last. A rule sets them apart,
+	// so they don't read as part of the configured tunnel above them.
+	external := slices.IndexFunc(m.rows, func(r tunnel.Row) bool { return r.Config == nil })
+	return problem + ruleAbove(tbl.String(), external)
 }
 
-// separateLabel repeats the rule under the header above data row label, so
-// the "not in config" section gets a line of its own. lipgloss can only draw
-// lines between all rows or none. Every row is one line: the cells hold no
-// line breaks, and a table too wide for the screen is truncated, not wrapped.
-func separateLabel(table string, label int) string {
+// ruleAbove repeats the rule under the header above data row i. lipgloss can
+// only draw lines between all rows or none. Every row is one line: the cells
+// hold no line breaks, and a table too wide for the screen is truncated, not
+// wrapped. There is no rule for row 0, which sits under the header rule.
+func ruleAbove(table string, i int) string {
 	lines := strings.Split(table, "\n")
 	const firstRow = 3 // top border, header, rule
-	if label < 0 || firstRow+label >= len(lines) {
+	if i <= 0 || firstRow+i >= len(lines) {
 		return table
 	}
-	at := firstRow + label
-	return strings.Join(slices.Insert(lines, at, lines[firstRow-1]), "\n")
+	return strings.Join(slices.Insert(lines, firstRow+i, lines[firstRow-1]), "\n")
 }
 
 func (m *Model) cells(r tunnel.Row, selected bool, t float64) []string {

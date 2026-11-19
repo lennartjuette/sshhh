@@ -104,7 +104,7 @@ do nothing.
 **Tunnels outlive sshhh.** They run in their own session, so you can quit
 sshhh, close the terminal and come back later. On start, sshhh matches the
 running ssh processes against the config by host and forwards and adopts
-them. Tunnels it cannot match are listed under "not in config" and can be
+them. Tunnels it cannot match are listed last, below a line, and can be
 stopped, but sshhh never stops them on its own.
 
 **Status** is `up` when ssh listens on every local port of the tunnel,
