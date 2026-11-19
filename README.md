@@ -4,8 +4,10 @@
 
 `sshhh` is a small terminal UI that keeps an eye on your SSH tunnels. Put
 your tunnels in a TOML file and sshhh starts them, shows whether they are up
-and how many clients use them, and restarts or stops them with one key. It
-also finds tunnels that were started some other way.
+and how many clients use them, and restarts or stops them with one key. A
+watchdog keeps them up on a bad network: when a tunnel drops, sshhh starts it
+again and backs off while the connection stays gone. It also finds tunnels
+that were started some other way.
 
 If you are managing about as many SSH tunnels as you are managing children
 and spend your days shushing both, this tool is for you.
