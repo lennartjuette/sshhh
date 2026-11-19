@@ -16,6 +16,7 @@ import (
 
 const (
 	frameInterval = 80 * time.Millisecond
+	stillInterval = time.Second // without animation only the clock and countdowns move
 	scanInterval  = 2 * time.Second
 	scanTimeout   = 5 * time.Second
 	noteTTL       = 6 * time.Second
@@ -26,11 +27,13 @@ type Model struct {
 	mgr        *tunnel.Manager
 	configPath string
 	version    string
-	load       func() ([]config.Tunnel, error)
+	load       func() (config.Config, error)
 	scan       func(context.Context) ([]proc.Proc, error)
 
 	tunnels   []config.Tunnel
 	configErr error // shown until the config loads again
+	animate   bool  // logo, traffic line, spinner; toggled with "a"
+	cfgAnim   *bool // animation setting of the last loaded config
 
 	procs   []proc.Proc
 	rows    []tunnel.Row
@@ -87,7 +90,7 @@ func New(mgr *tunnel.Manager, configPath, version string) *Model {
 	now := time.Now()
 	m := &Model{
 		mgr: mgr, configPath: configPath, version: version,
-		load: func() ([]config.Tunnel, error) { return config.Load(configPath) },
+		load: func() (config.Config, error) { return config.Load(configPath) },
 		scan: proc.Snapshot, started: now, now: now,
 	}
 	m.reload()
@@ -95,21 +98,40 @@ func New(mgr *tunnel.Manager, configPath, version string) *Model {
 }
 
 // reload reads the config again. If that fails, the previous tunnels stay.
+// The animation setting only takes effect when it changes in the file, so
+// that editing a tunnel does not undo the "a" key.
 func (m *Model) reload() {
-	tunnels, err := m.load()
+	c, err := m.load()
 	m.configErr = err
 	if err == nil {
-		m.tunnels = tunnels
+		m.tunnels = c.Tunnels
+		if m.cfgAnim == nil || *m.cfgAnim != c.Animates() {
+			anim := c.Animates()
+			m.animate, m.cfgAnim = anim, &anim
+		}
 	}
 	m.refresh()
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(nextFrame(), m.scanCmd(true))
+	return tea.Batch(m.nextFrame(), m.scanCmd(true))
 }
 
-func nextFrame() tea.Cmd {
-	return tea.Tick(frameInterval, func(t time.Time) tea.Msg { return frameMsg(t) })
+func (m *Model) nextFrame() tea.Cmd {
+	interval := stillInterval
+	if m.animate {
+		interval = frameInterval
+	}
+	return tea.Tick(interval, func(t time.Time) tea.Msg { return frameMsg(t) })
+}
+
+// animTime is the clock of the animation, which stands still at 0 while it
+// is off.
+func (m *Model) animTime() float64 {
+	if !m.animate {
+		return 0
+	}
+	return m.now.Sub(m.started).Seconds()
 }
 
 func (m *Model) scanCmd(periodic bool) tea.Cmd {
@@ -133,14 +155,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.refresh()
 		if !m.scanned { // the watchdog needs to know what runs
-			return m, nextFrame()
+			return m, m.nextFrame()
 		}
 		if started := m.mgr.Watchdog(m.rows); len(started) > 0 {
 			m.notify(noteWarn, "reconnecting %s", strings.Join(started, ", "))
 			m.refresh()
-			return m, tea.Batch(nextFrame(), m.scanCmd(false))
+			return m, tea.Batch(m.nextFrame(), m.scanCmd(false))
 		}
-		return m, nextFrame()
+		return m, m.nextFrame()
 	case scanMsg:
 		return m, m.onScan(msg)
 	case rescanMsg:
@@ -239,6 +261,9 @@ func (m *Model) onKey(key string) tea.Cmd {
 		}
 	case "e":
 		return tea.ExecProcess(editor(m.configPath), func(err error) tea.Msg { return editedMsg{err} })
+	case "a":
+		m.animate = !m.animate
+		m.notify(noteInfo, "animation %s", map[bool]string{true: "on", false: "off"}[m.animate])
 	case "K":
 		m.confirmKillAll()
 	case "q", "esc":

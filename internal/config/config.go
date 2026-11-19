@@ -18,6 +18,8 @@ import (
 // Example is a commented sample configuration.
 const Example = `# sshhh tunnels: one [[tunnel]] block per connection.
 
+animation = true                             # false: still logo, less CPU (key: a)
+
 [[tunnel]]
 name        = "office"                       # shown in the list, must be unique
 host        = "gateway.example.com"          # host name or alias from ~/.ssh/config
@@ -104,50 +106,57 @@ func Ensure(path string) (created bool, err error) {
 	return true, f.Close()
 }
 
+// Config is the whole configuration file.
+type Config struct {
+	Animation *bool    `toml:"animation"` // nil means true
+	Tunnels   []Tunnel `toml:"tunnel"`
+}
+
+// Animates reports whether the logo and status should move.
+func (c Config) Animates() bool { return c.Animation == nil || *c.Animation }
+
 // Load reads and validates the configuration file at path.
-func Load(path string) ([]Tunnel, error) {
+func Load(path string) (Config, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 	defer f.Close()
-	tunnels, err := Parse(f)
+	c, err := Parse(f)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
-	return tunnels, nil
+	return c, nil
 }
 
 // Parse reads and validates a configuration. Unknown keys are an error, so
 // that a typo like "autostrat" does not go unnoticed.
-func Parse(r io.Reader) ([]Tunnel, error) {
-	var file struct {
-		Tunnels []Tunnel `toml:"tunnel"`
-	}
-	err := toml.NewDecoder(r).DisallowUnknownFields().Decode(&file)
+func Parse(r io.Reader) (Config, error) {
+	var c Config
+	err := toml.NewDecoder(r).DisallowUnknownFields().Decode(&c)
 	if strict := (*toml.StrictMissingError)(nil); errors.As(err, &strict) {
-		return nil, fmt.Errorf("unknown key:\n%s", strict.String())
+		return Config{}, fmt.Errorf("unknown key:\n%s", strict.String())
 	}
 	if decode := (*toml.DecodeError)(nil); errors.As(err, &decode) {
 		row, _ := decode.Position()
-		return nil, fmt.Errorf("line %d: %s", row, decode.Error())
+		return Config{}, fmt.Errorf("line %d: %s", row, decode.Error())
 	}
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 	seen := make(map[string]bool)
-	for i, t := range file.Tunnels {
+	for i, t := range c.Tunnels {
 		switch {
 		case t.Name == "":
-			return nil, fmt.Errorf("tunnel #%d: name is missing", i+1)
+			return Config{}, fmt.Errorf("tunnel #%d: name is missing", i+1)
 		case seen[t.Name]:
-			return nil, fmt.Errorf("tunnel %q: name is used twice", t.Name)
+			return Config{}, fmt.Errorf("tunnel %q: name is used twice", t.Name)
 		case t.Host == "":
-			return nil, fmt.Errorf("tunnel %q: host is missing", t.Name)
+			return Config{}, fmt.Errorf("tunnel %q: host is missing", t.Name)
 		case len(t.Spec().Forwards) == 0:
-			return nil, fmt.Errorf("tunnel %q: needs socks, local or remote", t.Name)
+			return Config{}, fmt.Errorf("tunnel %q: needs socks, local or remote", t.Name)
 		}
 		seen[t.Name] = true
 	}
-	return file.Tunnels, nil
+	return c, nil
 }

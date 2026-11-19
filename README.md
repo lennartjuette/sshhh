@@ -61,6 +61,8 @@ The file lives at `~/.config/sshhh/tunnels.toml`
 otherwise nano (or vi) on macOS and Linux and Notepad on Windows.
 
 ```toml
+animation   = true                           # false: still logo, less CPU
+
 [[tunnel]]
 name        = "office"                       # shown in the list, must be unique
 host        = "gateway.example.com"          # host name or alias from ~/.ssh/config
@@ -97,6 +99,7 @@ do nothing.
 | `r`            | restart it                                                    |
 | `l`            | show its log in `$PAGER` (default `less`)                     |
 | `e`            | edit the config, reloaded when the editor closes              |
+| `a`            | turn the animation on or off                                  |
 | `K`            | terminate all your ssh processes, after asking                |
 | `q` `esc`      | quit; asks whether running tunnels should keep running        |
 | `ctrl+c`       | quit at once and leave every tunnel running                   |

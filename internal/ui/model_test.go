@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -38,7 +39,7 @@ func newModel(t *testing.T, tunnels []config.Tunnel, procs ...proc.Proc) *Model 
 		t.Fatal(err)
 	}
 	m := New(tunnel.NewManager(exe, t.TempDir()), filepath.Join(t.TempDir(), "missing.toml"), "test")
-	m.load = func() ([]config.Tunnel, error) { return tunnels, nil }
+	m.load = func() (config.Config, error) { return config.Config{Tunnels: tunnels}, nil }
 	m.scan = func(context.Context) ([]proc.Proc, error) { return procs, nil }
 	m.reload()
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -217,19 +218,19 @@ func TestView(t *testing.T) {
 func TestBrokenConfigIsShownAndReloaded(t *testing.T) {
 	m := newModel(t, nil)
 	broken := errors.New("line 3: toml: expected value")
-	m.load = func() ([]config.Tunnel, error) { return nil, broken }
+	m.load = func() (config.Config, error) { return config.Config{}, broken }
 	m.reload()
 	if out := ansi.Strip(m.View().Content); !strings.Contains(out, "line 3") || !strings.Contains(out, "Press e") {
 		t.Errorf("config error not shown:\n%s", out)
 	}
 
-	m.load = func() ([]config.Tunnel, error) { return testTunnels, nil }
+	m.load = func() (config.Config, error) { return config.Config{Tunnels: testTunnels}, nil }
 	m.Update(editedMsg{})
 	if m.configErr != nil || len(m.rows) != 3 || !strings.Contains(m.note.text, "3 tunnel(s)") {
 		t.Errorf("after fixing: err %v, %d rows, note %q", m.configErr, len(m.rows), m.note.text)
 	}
 
-	m.load = func() ([]config.Tunnel, error) { return nil, broken }
+	m.load = func() (config.Config, error) { return config.Config{}, broken }
 	m.Update(editedMsg{})
 	if len(m.rows) != 3 {
 		t.Error("a broken reload must keep the previous tunnels")
@@ -322,4 +323,43 @@ func TestExitText(t *testing.T) {
 			t.Errorf("exitText(%+v) = %q; want %q", e, got, want)
 		}
 	}
+}
+
+func TestAnimationSwitch(t *testing.T) {
+	off := false
+	m := newModel(t, testTunnels)
+	m.load = func() (config.Config, error) { return config.Config{Animation: &off, Tunnels: testTunnels}, nil }
+	m.reload()
+	if m.animate {
+		t.Fatal("animation = false in the config must stop the animation")
+	}
+	still := ansi.Strip(m.render())
+	m.now = m.now.Add(3 * time.Second)
+	if later := ansi.Strip(m.render()); stripClock(later) != stripClock(still) {
+		t.Error("without animation the view must not change apart from the clock")
+	}
+	if !strings.Contains(still, taglines[0]) {
+		t.Error("without animation the first tagline must stand still")
+	}
+
+	press(m, "a")
+	if !m.animate || !strings.Contains(m.note.text, "animation on") {
+		t.Errorf("a must turn the animation on: %v, %q", m.animate, m.note.text)
+	}
+	m.reload() // unchanged config: the key wins
+	if !m.animate {
+		t.Error("reloading an unchanged config must keep what the a key chose")
+	}
+	on := true
+	m.load = func() (config.Config, error) { return config.Config{Animation: &on, Tunnels: testTunnels}, nil }
+	press(m, "a")
+	m.reload() // the setting changed in the file: the file wins
+	if !m.animate {
+		t.Error("a changed setting in the config must apply")
+	}
+}
+
+// stripClock removes the time of day from the info line.
+func stripClock(view string) string {
+	return regexp.MustCompile(`\d\d:\d\d:\d\d`).ReplaceAllString(view, "")
 }

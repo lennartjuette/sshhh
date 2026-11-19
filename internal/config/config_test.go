@@ -13,11 +13,12 @@ import (
 )
 
 func TestExampleParses(t *testing.T) {
-	tunnels, err := Parse(strings.NewReader(Example))
+	c, err := Parse(strings.NewReader(Example))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tunnels) != 1 || !tunnels[0].Autostart {
+	tunnels := c.Tunnels
+	if len(tunnels) != 1 || !tunnels[0].Autostart || !c.Animates() {
 		t.Fatalf("got %+v", tunnels)
 	}
 	spec := tunnels[0].Spec()
@@ -45,9 +46,9 @@ func TestParseErrors(t *testing.T) {
 }
 
 func TestEmptyConfig(t *testing.T) {
-	tunnels, err := Parse(strings.NewReader("# nothing yet\n"))
-	if err != nil || len(tunnels) != 0 {
-		t.Errorf("got %v, %v", tunnels, err)
+	c, err := Parse(strings.NewReader("# nothing yet\n"))
+	if err != nil || len(c.Tunnels) != 0 || !c.Animates() {
+		t.Errorf("got %+v, %v", c, err)
 	}
 }
 
@@ -76,8 +77,8 @@ func TestLoad(t *testing.T) {
 	if err := os.WriteFile(path, []byte(Example), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if tunnels, err := Load(path); err != nil || len(tunnels) != 1 {
-		t.Errorf("Load = %v, %v", tunnels, err)
+	if c, err := Load(path); err != nil || len(c.Tunnels) != 1 {
+		t.Errorf("Load = %+v, %v", c, err)
 	}
 	if err := os.WriteFile(path, []byte("[[tunnel]]\nname='a'"), 0o600); err != nil {
 		t.Fatal(err)
@@ -93,9 +94,9 @@ func TestEnsure(t *testing.T) {
 	if err != nil || !created {
 		t.Fatalf("Ensure = %v, %v", created, err)
 	}
-	tunnels, err := Load(path)
-	if err != nil || len(tunnels) != 0 {
-		t.Fatalf("the starter config must load as empty: %v, %v", tunnels, err)
+	c, err := Load(path)
+	if err != nil || len(c.Tunnels) != 0 {
+		t.Fatalf("the starter config must load as empty: %+v, %v", c, err)
 	}
 	if err := os.WriteFile(path, []byte(Example), 0o600); err != nil {
 		t.Fatal(err)
@@ -103,7 +104,7 @@ func TestEnsure(t *testing.T) {
 	if created, err := Ensure(path); err != nil || created {
 		t.Errorf("Ensure must keep an existing file: %v, %v", created, err)
 	}
-	if tunnels, _ := Load(path); len(tunnels) != 1 {
+	if c, _ := Load(path); len(c.Tunnels) != 1 {
 		t.Error("existing file was overwritten")
 	}
 }
@@ -117,9 +118,9 @@ func TestStarterUncommentsToExample(t *testing.T) {
 		}
 		lines = append(lines, l)
 	}
-	tunnels, err := Parse(strings.NewReader(strings.Join(lines, "\n")))
-	if err != nil || len(tunnels) != 1 {
-		t.Errorf("removing the # must give a working tunnel: %v, %v", tunnels, err)
+	c, err := Parse(strings.NewReader(strings.Join(lines, "\n")))
+	if err != nil || len(c.Tunnels) != 1 {
+		t.Errorf("removing the # must give a working tunnel: %+v, %v", c, err)
 	}
 }
 
@@ -131,11 +132,19 @@ func TestSyntaxErrorNamesLine(t *testing.T) {
 }
 
 func TestReconnectDefaultsToOn(t *testing.T) {
-	tunnels, err := Parse(strings.NewReader("[[tunnel]]\nname='a'\nhost='h'\nsocks=1\n[[tunnel]]\nname='b'\nhost='h'\nsocks=2\nreconnect=false"))
+	c, err := Parse(strings.NewReader("[[tunnel]]\nname='a'\nhost='h'\nsocks=1\n[[tunnel]]\nname='b'\nhost='h'\nsocks=2\nreconnect=false"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	tunnels := c.Tunnels
 	if !tunnels[0].Reconnects() || tunnels[1].Reconnects() {
 		t.Errorf("Reconnects = %v, %v; want true, false", tunnels[0].Reconnects(), tunnels[1].Reconnects())
+	}
+}
+
+func TestAnimationSwitch(t *testing.T) {
+	c, err := Parse(strings.NewReader("animation = false\n[[tunnel]]\nname='a'\nhost='h'\nsocks=1"))
+	if err != nil || c.Animates() || len(c.Tunnels) != 1 {
+		t.Errorf("got %+v, %v; want animation off and one tunnel", c, err)
 	}
 }

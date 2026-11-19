@@ -44,7 +44,7 @@ func (m *Model) render() string {
 	if m.width == 0 {
 		return "" // wait for the first WindowSizeMsg
 	}
-	t := m.now.Sub(m.started).Seconds()
+	t := m.animTime()
 	center := func(s string) string { return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, s) }
 
 	var parts []string
@@ -53,7 +53,7 @@ func (m *Model) render() string {
 		parts = append(parts, "",
 			center(renderLogo(t)),
 			center(renderTraffic(t, logoWidth, running > 0, clients)),
-			center(styleMuted.Italic(true).Render(tagline(t))),
+			center(styleMuted.Italic(true).Render(m.tagline(t))),
 			"")
 	} else {
 		parts = append(parts, styleTitle.Render(" sshhh"), "")
@@ -95,7 +95,7 @@ func (m *Model) renderTable() string {
 		}
 		return styleMuted.Render("\n No tunnels yet. Press e to add your first one.")
 	}
-	t := m.now.Sub(m.started).Seconds()
+	t := m.animTime()
 	data := make([][]string, len(m.rows))
 	for i, r := range m.rows {
 		data[i] = m.cells(r, i == m.sel, t)
@@ -240,7 +240,7 @@ func (m *Model) renderNote() string {
 }
 
 func (m *Model) renderKeys() string {
-	keys := [][2]string{{"↑↓", "select"}, {"⏎", "start/stop"}, {"r", "restart"}, {"l", "log"}, {"e", "edit config"}, {"K", "kill all"}, {"q", "quit"}}
+	keys := [][2]string{{"↑↓", "select"}, {"⏎", "start/stop"}, {"r", "restart"}, {"l", "log"}, {"e", "edit"}, {"a", "animate"}, {"K", "kill all"}, {"q", "quit"}}
 	var b strings.Builder
 	b.WriteString(" ")
 	for _, k := range keys {
@@ -278,4 +278,12 @@ func shortenHome(path string) string {
 		return filepath.Join("~", rel)
 	}
 	return path
+}
+
+// tagline types out the rotating taglines, or shows the first one still.
+func (m *Model) tagline(t float64) string {
+	if !m.animate {
+		return taglines[0]
+	}
+	return tagline(t)
 }
