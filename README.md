@@ -30,9 +30,6 @@ children, and who spends his days shushing both.
 ╰───┴───────────┴────────────┴───────┴────────┴──────┴───────────┴──────────────╯
 ```
 
-The logo is animated in the terminal: a color gradient drifts through it, and
-the line below shows packets flowing faster as more clients connect.
-
 ## Install
 
 **macOS with Homebrew** (the easiest way):
