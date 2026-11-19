@@ -7,8 +7,8 @@ your tunnels in a TOML file and sshhh starts them, shows whether they are up
 and how many clients use them, and restarts or stops them with one key. It
 also finds tunnels that were started some other way.
 
-It was written by a father of four who has nearly as many SSH tunnels as
-children, and who spends his days shushing both.
+If you are managing about as many SSH tunnels as you are managing children
+and spend your days shushing both, this tool is for you.
 
 ```
           ███████╗███████╗██╗  ██╗██╗  ██╗██╗  ██╗
