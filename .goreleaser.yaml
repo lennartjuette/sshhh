@@ -1,0 +1,46 @@
+# Builds release binaries for macOS, Linux and Windows and updates the
+# Homebrew tap. Runs from .github/workflows/release.yml when a v* tag is pushed.
+version: 2
+project_name: sshhh
+
+builds:
+  - env: [CGO_ENABLED=0]
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{ .Version }}"]
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+
+homebrew_casks:
+  - name: sshhh
+    homepage: https://github.com/lennartjuette/sshhh
+    description: Terminal UI that keeps an eye on your SSH tunnels
+    license: MIT
+    repository:
+      owner: lennartjuette
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    # Without a token (tap not set up yet) the release still works, just
+    # without updating Homebrew.
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
+    hooks:
+      post:
+        # The binary is not signed by Apple. Homebrew would leave it in
+        # quarantine, and macOS would refuse to run it.
+        install_steps: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/sshhh"]
+          end
