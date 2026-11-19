@@ -35,8 +35,13 @@ and spend your days shushing both, this tool is for you.
 **macOS with Homebrew** (the easiest way):
 
 ```sh
-brew install --cask lennartjuette/tap/sshhh
+brew tap lennartjuette/tap
+brew trust lennartjuette/tap
+brew install --cask sshhh
 ```
+
+Homebrew asks you to trust a tap before it installs anything from it.
+Updates come with `brew upgrade`.
 
 **Download:** grab the file for your system from the
 [releases page](https://github.com/lennartjuette/sshhh/releases), unpack it
