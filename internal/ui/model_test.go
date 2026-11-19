@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -250,5 +251,20 @@ func TestEditorFromEnv(t *testing.T) {
 	t.Setenv("PAGER", "")
 	if args := pager("x.log").Args; args[len(args)-1] != "x.log" {
 		t.Errorf("pager args = %v", args)
+	}
+}
+
+func TestSeparatorAboveExternalTunnels(t *testing.T) {
+	external := proc.Proc{PID: 77, Dest: "elsewhere", Forwards: []sshcmd.Forward{{Kind: sshcmd.Dynamic, Spec: "9"}}}
+	lines := strings.Split(ansi.Strip(newModel(t, testTunnels, external).renderTable()), "\n")
+	label := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "not in config") })
+	if label < 1 || !strings.HasPrefix(lines[label-1], "├") || !strings.Contains(lines[label-2], "gamma") {
+		t.Errorf("no rule between gamma and the label:\n%s", strings.Join(lines, "\n"))
+	}
+	if !strings.Contains(lines[label+1], "elsewhere") {
+		t.Errorf("external tunnel must follow the label:\n%s", strings.Join(lines, "\n"))
+	}
+	if out := newModel(t, testTunnels).renderTable(); strings.Count(ansi.Strip(out), "├") != 1 {
+		t.Error("without external tunnels there must be only the header rule")
 	}
 }

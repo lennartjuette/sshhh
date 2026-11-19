@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -142,7 +143,21 @@ func (m *Model) renderTable() string {
 	if lipgloss.Width(tbl.String()) > m.width {
 		tbl.Width(m.width).Wrap(false)
 	}
-	return problem + tbl.String()
+	return problem + separateLabel(tbl.String(), slices.Index(rowOf, -1))
+}
+
+// separateLabel repeats the rule under the header above data row label, so
+// the "not in config" section gets a line of its own. lipgloss can only draw
+// lines between all rows or none. Every row is one line: the cells hold no
+// line breaks, and a table too wide for the screen is truncated, not wrapped.
+func separateLabel(table string, label int) string {
+	lines := strings.Split(table, "\n")
+	const firstRow = 3 // top border, header, rule
+	if label < 0 || firstRow+label >= len(lines) {
+		return table
+	}
+	at := firstRow + label
+	return strings.Join(slices.Insert(lines, at, lines[firstRow-1]), "\n")
 }
 
 func (m *Model) cells(r tunnel.Row, selected bool, t float64) []string {
