@@ -11,6 +11,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/lennartjuette/sshhh/internal/config"
 	"github.com/lennartjuette/sshhh/internal/proc"
@@ -266,5 +267,16 @@ func TestSeparatorAboveExternalTunnels(t *testing.T) {
 	}
 	if out := newModel(t, testTunnels).renderTable(); strings.Count(ansi.Strip(out), "├") != 1 {
 		t.Error("without external tunnels there must be only the header rule")
+	}
+}
+
+func TestTableWidthIsStable(t *testing.T) {
+	fwd := []sshcmd.Forward{{Kind: sshcmd.Dynamic, Spec: "1"}}
+	width := func(procs ...proc.Proc) int { return lipgloss.Width(newModel(t, testTunnels, procs...).renderTable()) }
+	down := width()
+	starting := width(proc.Proc{PID: 12345, Dest: "a", Forwards: fwd, Listening: map[int]bool{}})
+	up := width(proc.Proc{PID: 12345, Dest: "a", Forwards: fwd, Listening: map[int]bool{1: true}})
+	if down != starting || starting != up {
+		t.Errorf("table width changes with the status: down %d, starting %d, up %d", down, starting, up)
 	}
 }

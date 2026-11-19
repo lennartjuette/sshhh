@@ -169,11 +169,14 @@ func (m *Model) cells(r tunnel.Row, selected bool, t float64) []string {
 	if r.Config != nil && r.Config.Autostart {
 		c[colName] += " ↻"
 	}
-	c[colStatus] = statusText(r, t)
+	// Padded to the longest status, so the table does not jump when a
+	// tunnel goes from "down" to "starting" to "up".
+	c[colStatus] = fmt.Sprintf("%-10s", statusText(r, t))
 	c[colPID], c[colUptime], c[colConn] = "–", "–", "–"
 	if r.PID != 0 {
 		c[colPID] = strconv.Itoa(int(r.PID))
 	}
+	c[colPID] = fmt.Sprintf("%5s", c[colPID]) // room for common PIDs, see colStatus
 	var fwds []string
 	if p := r.Proc; p != nil {
 		if !p.Started.IsZero() {
